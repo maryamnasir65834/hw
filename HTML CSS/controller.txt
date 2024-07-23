@@ -1,0 +1,89 @@
+using Microsoft.AspNetCore.Mvc;
+using BookStoreApi.Models;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace BookStoreApi.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    public class BooksController : ControllerBase
+    {
+        private static List<Book> Books = new List<Book>
+        {
+            new Book { Id = 1, Title = "Book 1", Author = "Author 1", Description = "Description 1", ImageUrl = "url1", Price = 10.99M, Availability = "In Stock" },
+            new Book { Id = 2, Title = "Book 2", Author = "Author 2", Description = "Description 2", ImageUrl = "url2", Price = 12.99M, Availability = "Out of Stock" },
+            new Book { Id = 3, Title = "Book 3", Author = "Author 3", Description = "Description 3", ImageUrl = "url3", Price = 15.99M, Availability = "In Stock" }
+        };
+
+        [HttpGet]
+        public ActionResult<IEnumerable<Book>> GetBooks([FromQuery] string title = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        {
+            var filteredBooks = Books
+                .Where(b => string.IsNullOrEmpty(title) || b.Title.Contains(title, StringComparison.OrdinalIgnoreCase))
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            bool hasMore = filteredBooks.Count >= pageSize;
+            return Ok(new { books = filteredBooks, hasMore });
+        }
+
+        [HttpGet("{id}")]
+        public ActionResult<Book> GetBook(int id)
+        {
+            var book = Books.FirstOrDefault(b => b.Id == id);
+            if (book == null)
+                return NotFound();
+            return Ok(book);
+        }
+
+        [HttpPost]
+        public ActionResult<Book> CreateBook([FromBody] Book book)
+        {
+            if (book == null || !ModelState.IsValid)
+            {
+                return BadRequest("Invalid book data.");
+            }
+
+            book.Id = Books.Max(b => b.Id) + 1;
+            Books.Add(book);
+            return CreatedAtAction(nameof(GetBook), new { id = book.Id }, book);
+        }
+
+        [HttpPut("{id}")]
+        public IActionResult UpdateBook(int id, [FromBody] Book book)
+        {
+            var existingBook = Books.FirstOrDefault(b => b.Id == id);
+            if (existingBook == null)
+                return NotFound();
+
+            existingBook.Title = book.Title;
+            existingBook.Author = book.Author;
+            existingBook.Description = book.Description;
+            existingBook.ImageUrl = book.ImageUrl;
+            existingBook.Price = book.Price;
+            existingBook.Availability = book.Availability;
+
+            return NoContent();
+        }
+
+        [HttpDelete("{id}")]
+        public IActionResult DeleteBook(int id)
+        {
+            var book = Books.FirstOrDefault(b => b.Id == id);
+            if (book == null)
+                return NotFound();
+
+            Books.Remove(book);
+            return NoContent();
+        }
+
+        [HttpGet("author/{author}")]
+        public ActionResult<IEnumerable<Book>> GetBooksByAuthor(string author)
+        {
+            var books = Books.Where(b => b.Author.Equals(author, StringComparison.OrdinalIgnoreCase)).ToList();
+            return Ok(books);
+        }
+    }
+}
